@@ -1,0 +1,10 @@
+[project]
+name = "unit-converter"
+version = "0.1.0"
+description = "Explore a feature-rich multi-unit converter built with Python and Streamlit. Convert units across Length, Mass, Temperature, Area, Volume, and more with detailed explanations, real-world examples, and an intuitive interface. This open-source tool offers precise conversions, educational insights, and error handling—ideal for students, engineers, and enthusiasts. Clone it from GitHub and start converting today!"
+Keywords = "multi-unit converter, Python, Streamlit, unit conversion tool, measurement calculator, educational app, open-source project, length converter, mass converter, temperature converter"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    streamlit>=1.20.0
+]
