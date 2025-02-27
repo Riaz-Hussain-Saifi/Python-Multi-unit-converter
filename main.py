@@ -184,7 +184,7 @@ def load_conversion_data():
             "Miles per gallon (US)": 1,
             "Miles per gallon (UK)": 1.20095,
             "Kilometer per liter": 0.425144,
-            "Liter per 100 kilometers": "L/100km"
+            "Liter per 100 kilometers": "SPECIAL"  # Changed to indicate special handling needed
         },
         "Plane Angle": {
             "Degree": 1,
@@ -210,7 +210,7 @@ unit_descriptions = {
         "Inch": "One-twelfth of a foot (0.0254 m), common for small measurements like screen sizes, paper dimensions, or hardware."
     },
     "Mass": {
-        "Kilogram": "The SI base unit of mass, defined by the mass of the international prototype kilogram until 2019, now tied to Planck’s constant. Used worldwide for weight.",
+        "Kilogram": "The SI base unit of mass, defined by the mass of the international prototype kilogram until 2019, now tied to Planck's constant. Used worldwide for weight.",
         "Gram": "One-thousandth of a kilogram (0.001 kg), ideal for small items like food ingredients or jewelry.",
         "Milligram": "One-millionth of a kilogram (0.000001 kg), used in pharmaceuticals for tiny doses (e.g., 500 mg of aspirin).",
         "Metric Ton": "Equal to 1000 kilograms, used for heavy objects like vehicles, cargo, or industrial materials.",
@@ -234,6 +234,12 @@ unit_descriptions = {
         "Liter": "Equal to 0.001 cubic meters, used worldwide for liquids like beverages or fuel.",
         "Gallon (US)": "Equal to 3.78541 liters, common in the US for fuel, milk, or paint containers.",
         "Fluid Ounce (US)": "One-sixteenth of a pint (0.0295735 liters), used for small liquid measurements like cooking ingredients."
+    },
+    "Fuel Economy": {
+        "Miles per gallon (US)": "The standard measure of fuel efficiency in the US, representing distance traveled per unit of fuel.",
+        "Miles per gallon (UK)": "Similar to US MPG but using the larger imperial gallon, resulting in higher values for the same efficiency.",
+        "Kilometer per liter": "The metric equivalent of MPG, common in many countries outside the US and UK.",
+        "Liter per 100 kilometers": "The inverse of efficiency (fuel consumption rather than economy), standard in Europe and many other regions."
     }
 }
 
@@ -258,6 +264,9 @@ def convert_value(value, from_unit, to_unit, category):
             return value
 
         elif category == "Fuel Economy":
+            if from_unit == to_unit:
+                return value
+                
             if from_unit == "Liter per 100 kilometers":
                 if value == 0:
                     raise ZeroDivisionError("Cannot convert with zero value.")
@@ -277,7 +286,8 @@ def convert_value(value, from_unit, to_unit, category):
                 elif from_unit == "Kilometer per liter":
                     return 100 / value
             else:
-                return value if from_unit == to_unit else value * (conversion_data[category][from_unit] / conversion_data[category][to_unit])
+                # For other fuel economy conversions where both units have numerical factors
+                return value * (conversion_data[category][from_unit] / conversion_data[category][to_unit])
 
         if from_unit == to_unit:
             return value
@@ -309,15 +319,28 @@ def get_formula(from_unit, to_unit, category, from_value, to_value):
         return "no conversion needed"
 
     elif category == "Fuel Economy":
+        if from_unit == to_unit:
+            return "no conversion needed"
+            
         if from_unit == "Liter per 100 kilometers" and to_unit == "Miles per gallon (US)":
             return f"divide 235.214 by the value: 235.214 ÷ {from_value} = {to_value}"
-        elif from_unit == "Miles per gallon (US)" and to_unit == "Liter per 100 kilometers":
+        elif from_unit == "Liter per 100 kilometers" and to_unit == "Miles per gallon (UK)":
+            return f"divide 282.481 by the value: 282.481 ÷ {from_value} = {to_value}"
+        elif from_unit == "Liter per 100 kilometers" and to_unit == "Kilometer per liter":
+            return f"divide 100 by the value: 100 ÷ {from_value} = {to_value}"
+        elif to_unit == "Liter per 100 kilometers" and from_unit == "Miles per gallon (US)":
             return f"divide 235.214 by the value: 235.214 ÷ {from_value} = {to_value}"
-        elif from_unit == to_unit:
-            return "no conversion needed"
+        elif to_unit == "Liter per 100 kilometers" and from_unit == "Miles per gallon (UK)":
+            return f"divide 282.481 by the value: 282.481 ÷ {from_value} = {to_value}"
+        elif to_unit == "Liter per 100 kilometers" and from_unit == "Kilometer per liter":
+            return f"divide 100 by the value: 100 ÷ {from_value} = {to_value}"
         else:
-            factor = conversion_data[category][to_unit] / conversion_data[category][from_unit]
-            return f"multiply the {from_unit} value by {factor:.6g}: {from_value} × {factor:.6g} = {to_value}"
+            # For other fuel economy conversions
+            if from_unit in conversion_data[category] and to_unit in conversion_data[category]:
+                if isinstance(conversion_data[category][from_unit], (int, float)) and isinstance(conversion_data[category][to_unit], (int, float)):
+                    factor = conversion_data[category][from_unit] / conversion_data[category][to_unit]
+                    return f"multiply the {from_unit} value by {factor:.6g}: {from_value} × {factor:.6g} = {to_value}"
+            return f"special conversion: {from_value} {from_unit} → {to_value} {to_unit}"
 
     else:
         if from_unit == to_unit:
@@ -413,6 +436,20 @@ def get_conversion_details(from_unit, to_unit, category, from_value, to_value):
             explanation += f"uses the proportional relationship between {from_unit} and {to_unit}."
         if from_unit == "Liter" and 1 <= from_value <= 5:
             explanation += "\n\n**Context**: A typical water bottle is 0.5-1 liter, and a car fuel tank might hold 50 liters."
+    
+    elif category == "Fuel Economy":
+        if from_unit == "Liter per 100 kilometers" and to_unit.startswith("Miles per gallon"):
+            explanation += f"uses the inverse relationship between these units. L/100km measures consumption (lower is better), while MPG measures economy (higher is better)."
+            explanation += f" The conversion uses the formula MPG = 235.214 ÷ L/100km for US gallons or 282.481 ÷ L/100km for UK gallons."
+        elif to_unit == "Liter per 100 kilometers" and from_unit.startswith("Miles per gallon"):
+            explanation += f"converts from an economy measure (MPG) to a consumption measure (L/100km) using the formula L/100km = 235.214 ÷ MPG for US gallons or 282.481 ÷ MPG for UK gallons."
+        else:
+            explanation += f"applies the appropriate conversion factor between these fuel economy units."
+            
+        if from_unit == "Miles per gallon (US)" and 20 <= from_value <= 30:
+            explanation += "\n\n**Context**: This is a typical fuel economy range for many passenger cars in the US."
+        elif from_unit == "Liter per 100 kilometers" and 5 <= from_value <= 10:
+            explanation += "\n\n**Context**: This is a common consumption range for modern passenger vehicles in Europe and many other regions."
 
     explanation += f"\n\n**Result**: {from_value} {from_unit} equals {to_value} {to_unit}."
     return explanation
